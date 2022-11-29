@@ -1,13 +1,13 @@
 import { useRouter } from 'next/router';
 import { Fragment } from 'react';
 
-import { getFilteredEvents } from '../../dummy-data';
+import { getFilteredEvents } from '../../helpers/api-utils';
 import EventList from '../../components/events/EventList';
 import ResultsTitle from '../../components/events/results-title';
 import Button from '../../components/ui/Button';
 import ErrorAlert from '../../components/ui/error-alert';
 
-function FilteredEventsPage() {
+function FilteredEventsPage(props) {
 
     const router = useRouter();
 
@@ -19,16 +19,10 @@ function FilteredEventsPage() {
         </ErrorAlert>
     }
 
-    const numYear = +(filteredData[0]);
-    const numMonth = +(filteredData[1]);
+    const numYear = props.date.year;
+    const numMonth = props.date.month;
 
-    if( isNaN(numYear) ||
-        isNaN(numMonth)||
-        numYear > 2030 ||
-        numYear < 2021 ||
-        numMonth < 1   ||
-        numMonth > 12   
-    ) {
+    if( props.hasError) {
         return (
           <Fragment>
             <ErrorAlert>
@@ -41,10 +35,7 @@ function FilteredEventsPage() {
         );
     }
 
-    const filteredEvents = getFilteredEvents({
-        year: numYear,
-        month: numMonth,
-    });
+    const filteredEvents = props.events;
 
     if(!filteredEvents || filteredEvents.length === 0) {
         return (
@@ -70,3 +61,40 @@ function FilteredEventsPage() {
 }
 
 export default FilteredEventsPage;
+
+export async function getServerSideProps(context) {
+  const { params } = context;
+  const filteredData = params.slug;
+
+  const numYear = +(filteredData[0]);
+  const numMonth = +(filteredData[1]);
+
+  if (
+    isNaN(numYear) ||
+    isNaN(numMonth) ||
+    numYear > 2030 ||
+    numYear < 2021 ||
+    numMonth < 1 ||
+    numMonth > 12
+  ) {
+    return {
+      props: {hasError: true}
+    }
+  }
+
+  const filteredEvents = await getFilteredEvents({
+    year: numYear,
+    month: numMonth,
+  });
+
+  return {
+    props: {
+      events: filteredEvents,
+      date: {
+        year: numYear,
+        month: numMonth
+      },
+    }
+  }
+
+}
